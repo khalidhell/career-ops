@@ -19,14 +19,14 @@ opened directly from a normal browser on the public internet.
    `khalidhell/career-ops`.
 2. Select branch `codex/render-private-deployment`.
 3. Render reads the repository-root `render.yaml`. Review the service name,
-   Starter plan, and 1 GB persistent disk before creating it.
+   1 CPU / 2 GB plan, and 1 GB persistent disk before creating it.
 4. Set the two prompted secret values:
    - `CAREER_OPS_WEB_AUTH_USER`: choose a username.
    - `CAREER_OPS_WEB_AUTH_PASSWORD`: use a unique password of at least 16
      characters. Do not reuse a GitHub or email password.
 5. Create the service and wait for the health check to pass.
 
-The Starter service and persistent disk are paid Render resources. Check the
+The 1 CPU / 2 GB service plan and persistent disk are paid Render resources. Check the
 current price in Render before confirming creation.
 
 ## Data and secrets
