@@ -36,6 +36,9 @@ current price in Render before confirming creation.
 - The app's data root is `/var/data`; it survives deploys and restarts while
   the disk remains attached.
 - Back up the disk regularly. A persistent disk is not a backup.
+- Render generates a separate `CAREER_OPS_GPT_API_KEY` for the optional
+  Custom GPT Actions integration. Copy it from the Render Environment page
+  only when configuring that action; never commit or share it publicly.
 - Keep the repository private if you do not want its source code public.
   Website authentication and GitHub repository visibility are separate.
 - HTTP Basic Authentication is safe only over HTTPS. Use the Render HTTPS URL.
