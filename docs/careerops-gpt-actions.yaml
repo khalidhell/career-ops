@@ -59,7 +59,12 @@ paths:
                 undo:
                   type: boolean
                   description: Set true to undo the last status transition for this row.
-              required: [n]
+              oneOf:
+                - required: [n, status]
+                - required: [n, undo]
+                  properties:
+                    undo:
+                      const: true
               additionalProperties: false
       responses:
         "200":
