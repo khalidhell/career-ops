@@ -78,7 +78,7 @@ export function proxy(req: NextRequest) {
   const decision = checkRequest({
     secFetchSite: req.headers.get("sec-fetch-site"),
     origin: req.headers.get("origin"),
-    host: req.headers.get("host'),
+    host: req.headers.get("host"),
     allowedHosts: parseAllowedHosts(allowedHostsValue),
     allowedOrigins: parseAllowedOrigins(process.env.CAREER_OPS_ALLOWED_ORIGINS),
   });
