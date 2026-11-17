@@ -27,14 +27,14 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # The web tests also execute core scripts such as doctor.mjs.
+      # Install core dependencies at the repository root as well as web dependencies.
+      - name: Install core dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
       - name: Install web dependencies
         working-directory: web
         run: npm ci
-
-      # Web tests import shared modules from the repository root.
-      # Make the web dependency tree visible to those root-level modules.
-      - name: Link web dependencies for shared modules
-        run: ln -s "$GITHUB_WORKSPACE/web/node_modules" "$GITHUB_WORKSPACE/node_modules"
 
       - name: Run web tests
         working-directory: web
