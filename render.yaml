@@ -1,0 +1,27 @@
+# Render Blueprint for a password-protected CareerOps web service.
+# The persistent disk is required: the app stores its private tracker/profile files
+# under CAREER_OPS_ROOT and must not write them to Render's ephemeral filesystem.
+services:
+  - type: web
+    name: career-ops-private
+    runtime: node
+    plan: 1c-2g
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    disk:
+      name: career-ops-private-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: CAREER_OPS_ROOT
+        value: /var/data
+      - key: CAREER_OPS_WEB_AUTH_USER
+        sync: false
+      - key: CAREER_OPS_WEB_AUTH_PASSWORD
+        sync: false
+      - key: CAREER_OPS_GPT_API_KEY
+        generateValue: true

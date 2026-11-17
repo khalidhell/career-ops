@@ -24,7 +24,7 @@ const [command, ...extra] = process.argv.slice(2);
 const plan = planNextRun({
   command,
   extra,
-  envValue: process.env.CAREER_OPS_WEB_ALLOWED_HOSTS,
+  envValue: [process.env.CAREER_OPS_WEB_ALLOWED_HOSTS, process.env.RENDER_EXTERNAL_HOSTNAME].filter(Boolean).join(","),
 });
 if (!plan.ok) {
   console.error(plan.error);

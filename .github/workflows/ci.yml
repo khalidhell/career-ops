@@ -1,0 +1,49 @@
+name: CareerOps CI
+
+on:
+  pull_request:
+    branches:
+      - codex/render-private-deployment
+  push:
+    branches:
+      - main
+      - codex/render-private-deployment
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The web tests also execute core scripts such as doctor.mjs.
+      # Install core dependencies at the repository root as well as web dependencies.
+      - name: Install core dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Run web tests
+        working-directory: web
+        run: npm test
+
+      - name: Typecheck
+        working-directory: web
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: web
+        run: npm run build

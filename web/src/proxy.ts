@@ -1,31 +1,81 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { checkBasicAuth } from "@/lib/web-auth.mjs";
+import { checkBearerApiKey } from "@/lib/gpt-auth.mjs";
 import {
   checkRequest,
   parseAllowedHosts,
   parseAllowedOrigins,
 } from "@/lib/origin-guard.mjs";
 
-// Single choke point over everything the dashboard serves. Every request is
-// gated on the same-origin + loopback guard before it can reach a route handler
-// (which may spawn a child process or write the user's files) or a page (which
-// renders the user's CV, pipeline and reports). See origin-guard.mjs for the
-// two-layer rationale (F1 drive-by CSRF, F2 LAN reachability).
-//
-// Opt in to extra hosts (e.g. a trusted LAN box) with a comma/space separated
-// CAREER_OPS_WEB_ALLOWED_HOSTS; unset means loopback only.
-//
-// Opt in to extra *origins* the same way with CAREER_OPS_ALLOWED_ORIGINS;
-// unset means none, which is the default and leaves the guard as strict as it
-// was. It is what a local companion client needs: a browser extension calls
-// from a chrome-extension:// origin, which Fetch Metadata always reports as
-// "cross-site", so every one of its requests is refused otherwise.
+
+function unauthorized() {
+  return new NextResponse("Authentication required", {
+    status: 401,
+    headers: {
+      "WWW-Authenticate": 'Basic realm="CareerOps", charset="UTF-8"',
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function authenticate(req: NextRequest) {
+  const result = checkBasicAuth({
+    authorization: req.headers.get("authorization") ?? undefined,
+    username: process.env.CAREER_OPS_WEB_AUTH_USER,
+    password: process.env.CAREER_OPS_WEB_AUTH_PASSWORD,
+    production: process.env.NODE_ENV === "production",
+  });
+  if (result === "misconfigured") {
+    return new NextResponse("Website authentication is not configured correctly.", {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  return result === "ok" ? null : unauthorized();
+}
+
 export function proxy(req: NextRequest) {
+  // Render's health probe gets only a fixed liveness response, never user data.
+  if (req.nextUrl.pathname === "/healthz") return NextResponse.next();
+
+  if (req.nextUrl.pathname.startsWith("/api/gpt/")) {
+    const result = checkBearerApiKey({
+      authorization: req.headers.get("authorization") ?? undefined,
+      apiKey: process.env.CAREER_OPS_GPT_API_KEY,
+      production: process.env.NODE_ENV === "production",
+    });
+    if (result !== "ok") {
+      const status = result === "misconfigured" ? 503 : 401;
+      return new NextResponse(
+        result === "misconfigured" ? "GPT API authentication is not configured." : "Authentication required",
+        {
+          status,
+          headers: {
+            ...(status === 401 ? { "WWW-Authenticate": "Bearer" } : {}),
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+  } else {
+    const authFailure = authenticate(req);
+    if (authFailure) return authFailure;
+  }
+
+  // Render assigns the public service hostname at runtime. Include it in both
+  // the listener plan (server.mjs) and this Host allowlist; local behaviour is
+  // unchanged when the Render variable is absent.
+  const allowedHostsValue = [
+    process.env.CAREER_OPS_WEB_ALLOWED_HOSTS,
+    process.env.RENDER_EXTERNAL_HOSTNAME,
+  ].filter(Boolean).join(",");
+
   const decision = checkRequest({
     secFetchSite: req.headers.get("sec-fetch-site"),
     origin: req.headers.get("origin"),
     host: req.headers.get("host"),
-    allowedHosts: parseAllowedHosts(process.env.CAREER_OPS_WEB_ALLOWED_HOSTS),
+    allowedHosts: parseAllowedHosts(allowedHostsValue),
     allowedOrigins: parseAllowedOrigins(process.env.CAREER_OPS_ALLOWED_ORIGINS),
   });
   if (!decision.ok) {
@@ -34,12 +84,4 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-// Everything except build assets. Scoping this to /api left every page route
-// ungated, which loopback does not cover: a page that re-resolves its own domain
-// to 127.0.0.1 (DNS rebinding) fetches /pipeline same-origin from the user's own
-// browser, and force-dynamic pages read the tracker off disk on each request.
-// The Host header carries the attacker's domain there, so the guard refuses it —
-// but only if it runs. Build assets stay out: they are the same for every user,
-// carry nothing of theirs, and a caller who cannot read a page has no use for
-// the chunk that renders it.
 export const config = { matcher: "/((?!_next/static|_next/image|favicon.ico).*)" };
