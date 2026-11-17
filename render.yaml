@@ -5,7 +5,7 @@ services:
   - type: web
     name: career-ops-private
     runtime: node
-    plan: starter
+    plan: 1c-2g
     rootDir: web
     buildCommand: npm ci && npm run build
     startCommand: npm start
