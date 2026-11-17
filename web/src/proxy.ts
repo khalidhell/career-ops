@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { checkBasicAuth } from "@/lib/web-auth.mjs";
+import { checkBearerApiKey } from "@/lib/gpt-auth.mjs";
 import {
   checkRequest,
   parseAllowedHosts,
@@ -38,8 +39,29 @@ export function proxy(req: NextRequest) {
   // Render's health probe gets only a fixed liveness response, never user data.
   if (req.nextUrl.pathname === "/healthz") return NextResponse.next();
 
-  const authFailure = authenticate(req);
-  if (authFailure) return authFailure;
+  if (req.nextUrl.pathname.startsWith("/api/gpt/")) {
+    const result = checkBearerApiKey({
+      authorization: req.headers.get("authorization") ?? undefined,
+      apiKey: process.env.CAREER_OPS_GPT_API_KEY,
+      production: process.env.NODE_ENV === "production",
+    });
+    if (result !== "ok") {
+      const status = result === "misconfigured" ? 503 : 401;
+      return new NextResponse(
+        result === "misconfigured" ? "GPT API authentication is not configured." : "Authentication required",
+        {
+          status,
+          headers: {
+            ...(status === 401 ? { "WWW-Authenticate": "Bearer" } : {}),
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+  } else {
+    const authFailure = authenticate(req);
+    if (authFailure) return authFailure;
+  }
 
   // Render assigns the public service hostname at runtime. Include it in both
   // the listener plan (server.mjs) and this Host allowlist; local behaviour is
