@@ -194,8 +194,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0            # harness needs release tags
+          fetch-depth: 0            # full history from the fork; release tags live on upstream
           persist-credentials: false # the harness only ever touches a local mirror
+      - name: Fetch upstream release tags
+        # This is a fork; GitHub does not copy upstream release tags to every fork.
+        # The upgrade harness selects its baseline from tags that are ancestors of HEAD.
+        run: git fetch --force --tags https://github.com/career-ops-hq/career-ops.git
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
