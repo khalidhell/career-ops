@@ -1,0 +1,82 @@
+openapi: 3.1.0
+info:
+  title: CareerOps Personal Career Assistant API
+  version: 1.0.0
+  description: Read your private job pipeline and update application statuses. All operations are scoped to your own CareerOps instance.
+servers:
+  - url: https://YOUR-RENDER-SERVICE.onrender.com
+    description: Replace with your deployed Render service URL.
+security:
+  - CareerOpsBearer: []
+paths:
+  /api/gpt/pipeline:
+    get:
+      operationId: getCareerPipeline
+      summary: Read the current job pipeline
+      description: Returns the current inbox and tracked applications from the authenticated user's private CareerOps data. Read-only.
+      responses:
+        "200":
+          description: Current pipeline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inbox:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  applications:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                required: [inbox, applications]
+        "401":
+          description: Missing or invalid bearer token
+        "503":
+          description: GPT API key is not configured
+  /api/gpt/status:
+    post:
+      operationId: updateCareerApplicationStatus
+      summary: Update an application status
+      description: Updates the status of an existing tracker row using CareerOps' lock-safe writer. Does not submit a job application.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                n:
+                  type: string
+                  description: Existing tracker row number, not a report number.
+                status:
+                  type: string
+                  description: New canonical CareerOps status.
+                undo:
+                  type: boolean
+                  description: Set true to undo the last status transition for this row.
+              required: [n]
+              additionalProperties: false
+      responses:
+        "200":
+          description: Status update result
+        "400":
+          description: Invalid row or status
+        "401":
+          description: Missing or invalid bearer token
+        "404":
+          description: Tracker row not found
+        "409":
+          description: Status conflict
+        "503":
+          description: GPT API key or required core script is not available
+components:
+  securitySchemes:
+    CareerOpsBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
